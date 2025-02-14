@@ -177,44 +177,50 @@ class TextToSpeech:
 
     def _merge_audio_files(self, audio_files: List[str], output_file: str) -> None:
         """
-        Merge the provided audio files sequentially, ensuring questions come before answers.
-
-        Args:
-                audio_files: List of paths to audio files to merge
-                output_file: Path to save the merged audio file
+        Merge the provided audio files sequentially using FFmpeg directly to avoid quality loss.
         """
         try:
-
             def get_sort_key(file_path: str) -> Tuple[int, int]:
                 """
                 Create sort key from filename that puts questions before answers.
                 Example filenames: "1_question.mp3", "1_answer.mp3"
                 """
                 basename = os.path.basename(file_path)
-                # Extract the index number and type (question/answer)
                 idx = int(basename.split("_")[0])
                 is_answer = basename.split("_")[1].startswith("answer")
-                return (
-                    idx,
-                    1 if is_answer else 0,
-                )  # Questions (0) come before answers (1)
+                return (idx, 1 if is_answer else 0)
 
-            # Sort files by index and type (question/answer)
+            # Sort files by index and type
             audio_files.sort(key=get_sort_key)
 
-            # Create empty audio segment
-            combined = AudioSegment.empty()
+            # Create a temporary file listing all input files for FFmpeg
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                for audio_file in audio_files:
+                    f.write(f"file '{os.path.abspath(audio_file)}'\n")
+                concat_list = f.name
 
-            # Add each audio file to the combined segment
-            for file_path in audio_files:
-                combined += AudioSegment.from_file(file_path, format=self.audio_format)
+            try:
+                # Ensure output directory exists
+                os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-            # Ensure output directory exists
-            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+                # Use FFmpeg to concatenate files directly
+                import subprocess
+                cmd = [
+                    'ffmpeg', '-y',  # Overwrite output file if it exists
+                    '-f', 'concat',   # Use concat demuxer
+                    '-safe', '0',     # Don't restrict file paths
+                    '-i', concat_list,  # Input file list
+                    '-c', 'copy',     # Copy streams without re-encoding
+                    output_file
+                ]
+                
+                subprocess.run(cmd, check=True, capture_output=True)
+                logger.info(f"Merged audio saved to {output_file}")
 
-            # Export the combined audio
-            combined.export(output_file, format=self.audio_format)
-            logger.info(f"Merged audio saved to {output_file}")
+            finally:
+                # Clean up the temporary concat list file
+                if os.path.exists(concat_list):
+                    os.remove(concat_list)
 
         except Exception as e:
             logger.error(f"Error merging audio files: {str(e)}")
