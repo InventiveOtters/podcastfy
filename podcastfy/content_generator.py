@@ -66,6 +66,7 @@ class LLMBackend:
                 api_key=os.environ["GEMINI_API_KEY"],
                 model=model_name,
                 max_output_tokens=max_output_tokens,
+                max_retries=5,
                 **common_params,
             )
         else:  # user should set api_key_label from input
@@ -200,8 +201,8 @@ class LongFormContentGenerator:
         if part_idx == 0:
             enhanced_params["instruction"] = f"""
             ALWAYS START THE CONVERSATION GREETING THE AUDIENCE: Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.
-            You are generating the Introduction part of a long podcast conversation.
-            Don't cover any topics yet, just introduce yourself and the topic. Leave the rest for later parts, following these guidelines:
+            You are generating part {part_idx+1} of {total_parts} parts of a long podcast conversation.
+            For this part, discuss the below INPUT in a podcast conversation format, following these guidelines
             """
         elif part_idx == total_parts - 1:
             enhanced_params["instruction"] = f"""
@@ -241,7 +242,7 @@ class LongFormContentGenerator:
 
         chunks = self.chunk_content(input_content, chunk_size)
         conversation_parts = []
-        chat_context = input_content
+        chat_context = ""
         num_parts = len(chunks)
         print(f"Generating {num_parts} parts")
         
