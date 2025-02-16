@@ -200,7 +200,7 @@ class LongFormContentGenerator:
         # Add part-specific instructions
         if part_idx == 0:
             enhanced_params["instruction"] = f"""
-            ALWAYS START THE CONVERSATION GREETING THE AUDIENCE: Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.
+            ALWAYS START THE CONVERSATION GREETING THE AUDIENCE:<Person1>Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.</Person1>
             You are generating part {part_idx+1} of {total_parts} parts of a long podcast conversation.
             For this part, discuss the below INPUT in a podcast conversation format, following these guidelines
             """
